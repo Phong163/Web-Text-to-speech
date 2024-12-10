@@ -15,28 +15,15 @@ from vits2.text import tokenizer
 from scipy.io.wavfile import write
 import gdown
 
+audio_url="static/audio/out.wav"
+audio_path = "home/static/audio/out.wav"
 
-# Load model
-vocab = load_vocab("vits2/config/vocab.txt")
-hps = get_hparams_from_file("vits2/config/config.yaml")
-filter_length = hps.data.n_mels if hps.data.use_mel else hps.data.n_fft // 2 + 1
-segment_size = hps.train.segment_size // hps.data.hop_length
-net_g = SynthesizerTrn(318, filter_length, segment_size, **hps.model)
-_ = net_g.eval()
-check_point = "vits2/logs/G_7000.pth"
 def download_from_google_drive(file_id):
     url = f'https://drive.google.com/uc?export=download&id={file_id}'
     output = 'G_7000.pth'  # You can specify the output filename here
     gdown.download(url, output, quiet=False)
     return output
-# Check if the checkpoint exists, otherwise download it
-if check_point is None or not os.path.exists(check_point):
-    # Assuming you have a function or method to download from Google Drive
-    check_point = download_from_google_drive('1V9ou7CON54GY3SFekxHAYK0XGR8LJFAi')
-_ = load_checkpoint(check_point, net_g, None)
 
-audio_url="static/audio/out.wav"
-audio_path = "home/static/audio/out.wav"
 def get_home(request):
     return render(request, 'home.html')
 
@@ -52,8 +39,6 @@ def translate(text):
     out = net_g.infer(x_tst, x_tst_lengths, noise_scale=0.5, noise_scale_w=0.7, length_scale=1)
     audio = out[0][0, 0].data.cpu().float().numpy()
     write(audio_path, 22050, (audio * 32767).astype("int16"))
-
-
 
 def translate_api_viettel(text):
     url = "https://viettelai.vn/tts/speech_synthesis"
@@ -87,3 +72,16 @@ def process_text(request):
         except Exception as e:
             return JsonResponse({"error": f"Lỗi vị trí số 1: {str(e)}"}, status=500)
 
+# Load model
+vocab = load_vocab("vits2/config/vocab.txt")
+hps = get_hparams_from_file("vits2/config/config.yaml")
+filter_length = hps.data.n_mels if hps.data.use_mel else hps.data.n_fft // 2 + 1
+segment_size = hps.train.segment_size // hps.data.hop_length
+net_g = SynthesizerTrn(318, filter_length, segment_size, **hps.model)
+_ = net_g.eval()
+check_point = "vits2/logs/G_7000.pth"
+# Check if the checkpoint exists, otherwise download it
+if check_point is None or not os.path.exists(check_point):
+    # Assuming you have a function or method to download from Google Drive
+    check_point = download_from_google_drive('1V9ou7CON54GY3SFekxHAYK0XGR8LJFAi')
+_ = load_checkpoint(check_point, net_g, None)
