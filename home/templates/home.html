@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        a.navbar-brand {
+            font-size: 24px;
+            color: red;
+        }
+
+        .custom-head {
+            font-size: 30px;
+            color: blue;
+        }
+
+        .box {
+            border: 2px solid #0d6efd;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #f8f9fa;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .box-title {
+            color: #0d6efd;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .char-count {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .result-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 15px;
+            border: 1px solid #6c757d;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .audio-player {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+
+        #loading {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .voice-selection {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .voice-btn {
+            background-color: #f8f9fa;
+            color: #0d6efd;
+            border: 2px solid #0d6efd;
+            padding: 5px 15px;
+            cursor: pointer;
+        }
+
+        .voice-btn.selected {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        .voice-btn:not(.selected):hover {
+            background-color: #e9ecef;
+        }
+
+    </style>
+</head>
+<body>
+    <nav class="navbar bg-body-tertiary">
+        <div class="container-fluid">
+            <a class="navbar-brand">VĂN THÁI</a>
+            <span class="custom-head">Text To Speech</span>
+            <form class="d-flex" role="search">
+                <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
+                <button class="btn btn-outline-success" type="submit">Search</button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <!-- Add buttons for selecting the voice option -->
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="voiceOption" id="voiceCustomTrain" value="customTrain" checked>
+            <label class="form-check-label" for="voiceCustomTrain">Voice Custom Train</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="voiceOption" id="voiceAPI" value="api">
+            <label class="form-check-label" for="voiceAPI">Voice API</label>
+        </div>
+
+        <!-- Input Box -->
+        <div class="box">
+            <h3 class="box-title">Nhập văn bản của bạn</h3>
+            <form id="textToSpeechForm" method="POST">
+                {% csrf_token %}
+                <textarea id="textInput" name="text_input" class="form-control" rows="5" placeholder="Nhập văn bản tại đây..."></textarea>
+                <span id="charCount" class="char-count">0 ký tự</span>
+                <div class="text-center mt-3">
+                    <button id="convertButton" class="btn btn-primary" type="submit">Chuyển đổi</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Đang tải...</span>
+            </div>
+            <p>Đang chuyển đổi văn bản...</p>
+        </div>
+
+        <!-- Result Box -->
+        <div id="resultBox" class="box" style="display: none;">
+            <h3 class="box-title">Kết quả</h3>
+            <div class="result-box">
+                <audio id="audioPlayer" class="audio-player" controls>
+                    <source id="audioSource" src="" type="audio/wav">
+                    Trình duyệt của bạn không hỗ trợ phát âm thanh.
+                </audio>
+                <a id="downloadLink" href="#" download="speech.wav" class="btn btn-success">Tải xuống</a>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        const textInput = document.getElementById('textInput');
+        const charCount = document.getElementById('charCount');
+        const textToSpeechForm = document.getElementById('textToSpeechForm');
+        const resultBox = document.getElementById('resultBox');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const audioSource = document.getElementById('audioSource');
+        const downloadLink = document.getElementById('downloadLink');
+        const loading = document.getElementById('loading');
+        const voiceCustomTrainBtn = document.getElementById('voiceCustomTrainBtn');
+        const voiceApiBtn = document.getElementById('voiceApiBtn');
+
+        // Đếm ký tự
+        textInput.addEventListener('input', () => {
+            const text = textInput.value;
+            charCount.textContent = `${text.length} ký tự`;
+        });
+
+        // Xử lý gửi form
+        textToSpeechForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            // Get the selected voice option
+            const voiceOption = document.querySelector('input[name="voiceOption"]:checked').value;
+
+            // Hiển thị loading
+            loading.style.display = 'block';
+            resultBox.style.display = 'none';
+
+            const formData = new FormData(textToSpeechForm);
+            formData.append("voiceOption", voiceOption); // Thêm voiceOption vào formData
+
+            try {
+                const response = await fetch('/process_text', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Lỗi khi gửi yêu cầu');
+                }
+
+                const data = await response.json();
+                const audioUrl = data.audio_url;
+
+                // Cập nhật URL vào audio player và liên kết tải xuống
+                audioSource.src = audioUrl;
+                downloadLink.href = audioUrl;
+                resultBox.style.display = 'block';
+                loading.style.display = 'none';
+                audioPlayer.load();
+            } catch (error) {
+                console.error(error);
+                alert('Đã có lỗi xảy ra: ' + error.message);
+                loading.style.display = 'none';
+            }
+        });
+
+        // Xử lý thay đổi lựa chọn voice
+        voiceCustomTrainBtn.addEventListener('click', () => {
+            voiceCustomTrainBtn.classList.add('selected');
+            voiceApiBtn.classList.remove('selected');
+        });
+
+        voiceApiBtn.addEventListener('click', () => {
+            voiceApiBtn.classList.add('selected');
+            voiceCustomTrainBtn.classList.remove('selected');
+        });
+    </script>
+</body>
+</html>
