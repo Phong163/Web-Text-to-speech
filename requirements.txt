@@ -1,0 +1,9 @@
+torch==2.3.0
+torchvision
+torchaudio==2.3.0
+torchtext
+phonemizer
+numpy
+requests
+gdown
+scipy
