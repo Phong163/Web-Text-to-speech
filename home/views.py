@@ -20,7 +20,7 @@ audio_path = "home/static/audio/out.wav"
 
 def download_from_google_drive(file_id):
     url = f'https://drive.google.com/uc?export=download&id={file_id}'
-    output = 'G_7000.pth'  # You can specify the output filename here
+    output = 'G_13000.pth'  # You can specify the output filename here
     gdown.download(url, output, quiet=False)
     return output
 
@@ -83,5 +83,5 @@ check_point = "vits2/logs/G_13000.pth"
 # Check if the checkpoint exists, otherwise download it
 if check_point is None or not os.path.exists(check_point):
     # Assuming you have a function or method to download from Google Drive
-    check_point = download_from_google_drive('1V9ou7CON54GY3SFekxHAYK0XGR8LJFAi')
+    check_point = download_from_google_drive('10B8FGe33IjC030AtiACEbC2bMEILw4Y1')
 _ = load_checkpoint(check_point, net_g, None)
